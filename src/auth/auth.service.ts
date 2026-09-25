@@ -185,7 +185,7 @@ export class AuthService {
                 body: JSON.stringify({
                     type: 'create',
 
-                    providers: ['IMAP'],
+                    providers: ['MAIL'],
 
                     api_url: `https://${dsn}`,
 
@@ -214,7 +214,6 @@ export class AuthService {
 
         return data.url;
     }
-
     //Save Both Microsoft and Google Unipile Account
     // Save Unipile account ID to database
     async saveUnipileAccount(
