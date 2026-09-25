@@ -131,7 +131,89 @@ export class AuthService {
         return data.url;
     }
 
+    // create smtp server link for unipile account
+    // Generate Unipile SMTP/IMAP auth link
+    async createUnipileSmtpAuthLink() {
+        const apiKey =
+            this.configService.get<string>(
+                'unipile.apiKey',
+            );
 
+        const dsn =
+            this.configService.get<string>(
+                'unipile.dsn',
+            );
+
+        const redirectUri =
+            this.configService.get<string>(
+                'unipile.redirectUri',
+            );
+
+        if (!apiKey) {
+            throw new Error(
+                'UNIPILE_API_KEY is not configured',
+            );
+        }
+
+        if (!dsn) {
+            throw new Error(
+                'UNIPILE_DSN is not configured',
+            );
+        }
+
+        if (!redirectUri) {
+            throw new Error(
+                'UNIPILE_REDIRECT_URI is not configured',
+            );
+        }
+
+        const expiresOn = new Date(
+            Date.now() + 10 * 60 * 1000,
+        ).toISOString();
+
+        const response = await fetch(
+            `https://${dsn}/api/v1/hosted/accounts/link`,
+            {
+                method: 'POST',
+
+                headers: {
+                    'X-API-KEY': apiKey,
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+
+                body: JSON.stringify({
+                    type: 'create',
+
+                    providers: ['IMAP'],
+
+                    api_url: `https://${dsn}`,
+
+                    expiresOn,
+
+                    success_redirect_url:
+                        redirectUri,
+
+                    failure_redirect_url:
+                        redirectUri,
+                }),
+            },
+        );
+
+        if (!response.ok) {
+            const error =
+                await response.text();
+
+            throw new Error(
+                `Unipile SMTP/IMAP Hosted Auth request failed: ${response.status} ${error}`,
+            );
+        }
+
+        const data =
+            await response.json();
+
+        return data.url;
+    }
 
     //Save Both Microsoft and Google Unipile Account
     // Save Unipile account ID to database

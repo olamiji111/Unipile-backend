@@ -33,6 +33,14 @@ export class AuthController {
         return res.redirect(authUrl);
     }
 
+    @Get('/smtp')
+    async smtpAuth(@Res() res: Response) {
+        const authUrl =
+            await this.authService.createUnipileSmtpAuthLink();
+
+        return res.redirect(authUrl);
+    }
+
     @Get('/unipile/callback')
     async unipileCallback(
         @Req() req: any,
