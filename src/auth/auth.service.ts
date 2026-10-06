@@ -262,7 +262,7 @@ export class AuthService {
         }
 
         const response = await fetch(
-            `https://${dsn}/api/v1/emails?limit=50&account_id=${encodeURIComponent(accountId)}`,
+            `https://${dsn}/api/v1/emails?limit=200&account_id=${encodeURIComponent(accountId)}`,
             {
                 method: 'GET',
                 headers: {
@@ -355,7 +355,7 @@ export class AuthService {
         }
 
         const response = await fetch(
-            `https://${dsn}/api/v1/emails?limit=50&account_id=${encodeURIComponent(accountId)}&folder=SENT`,
+            `https://${dsn}/api/v1/emails?limit=200&account_id=${encodeURIComponent(accountId)}&folder=SENT`,
             {
                 method: 'GET',
                 headers: {
@@ -450,7 +450,7 @@ export class AuthService {
         }
 
         const response = await fetch(
-            `https://${dsn}/api/v1/emails?limit=50&account_id=${encodeURIComponent(accountId)}`,
+            `https://${dsn}/api/v1/emails?limit=200&account_id=${encodeURIComponent(accountId)}`,
             {
                 method: 'GET',
                 headers: {
@@ -541,7 +541,7 @@ export class AuthService {
         }
 
         const response = await fetch(
-            `https://${dsn}/api/v1/emails?limit=50&account_id=${encodeURIComponent(accountId)}&folder=SENT`,
+            `https://${dsn}/api/v1/emails?limit=200&account_id=${encodeURIComponent(accountId)}&folder=SENT`,
             {
                 method: 'GET',
                 headers: {
@@ -797,5 +797,108 @@ export class AuthService {
         console.log('Unipile email sent successfully:', data);
 
         return data;
+    }
+    async sendUnipileHtmlEmail(
+        accountId: string,
+        to: string,
+        subject: string,
+        html: string,
+        fileBuffer: Buffer,
+        filename: string,
+    ) {
+        const apiKey =
+            this.configService.get<string>('unipile.apiKey');
+
+        const dsn =
+            this.configService.get<string>('unipile.dsn');
+
+        if (!apiKey) {
+            throw new Error(
+                'UNIPILE_API_KEY is not configured',
+            );
+        }
+
+        if (!dsn) {
+            throw new Error(
+                'UNIPILE_DSN is not configured',
+            );
+        }
+
+        const account =
+            await this.unipileAccountModel.findOne({
+                accountId,
+            });
+
+        if (!account) {
+            throw new Error(
+                `Unipile account not found: ${accountId}`,
+            );
+        }
+
+        const formData = new FormData();
+
+        formData.append(
+            'account_id',
+            accountId,
+        );
+
+        formData.append(
+            'to',
+            JSON.stringify([
+                {
+                    identifier: to,
+                },
+            ]),
+        );
+
+        formData.append(
+            'subject',
+            subject,
+        );
+
+        formData.append(
+            'body',
+            html,
+        );
+
+        const blob = new Blob(
+            [new Uint8Array(fileBuffer)],
+            {
+                type: 'application/pdf',
+            },
+        );
+
+        formData.append(
+            'attachments',
+            blob,
+            filename,
+        );
+
+        const response = await fetch(
+            `https://${dsn}/api/v1/emails`,
+            {
+                method: 'POST',
+                headers: {
+                    'X-API-KEY': apiKey,
+                    Accept: 'application/json',
+                },
+                body: formData,
+            },
+        );
+
+        const responseText =
+            await response.text();
+
+        if (!response.ok) {
+            throw new Error(
+                `Unipile send email failed: ${response.status} ${responseText}`,
+            );
+        }
+
+        try {
+            return JSON.parse(responseText);
+        } catch {
+            return responseText;
+        }
     }
 }

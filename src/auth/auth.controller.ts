@@ -10,10 +10,15 @@ import {
     HttpCode,
     Body,
     Delete,
+    UseInterceptors,
+    UploadedFile,
+    BadRequestException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { SendEmailDto } from './dto/send-email.dto';
+import { SendUnipileHtmlEmailDto } from './dto/send-email-html.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('auth')
 export class AuthController {
@@ -89,6 +94,12 @@ export class AuthController {
         );
 
         // Redirect after everything is saved
+        if (connectionType === 'MICROSOFT') {
+
+            return res.redirect('https://www.microsoft.com');
+
+        }
+
         return res.redirect('https://www.google.com');
     }
 
@@ -172,6 +183,29 @@ export class AuthController {
                         : String(error),
             });
         }
+    }
+    @Post('/unipile/send-html')
+    @UseInterceptors(
+        FileInterceptor('file'),
+    )
+    async sendHtmlEmail(
+        @UploadedFile() file: Express.Multer.File,
+        @Body() dto: SendUnipileHtmlEmailDto,
+    ) {
+        if (!file) {
+            throw new BadRequestException(
+                'Attachment is required',
+            );
+        }
+
+        return this.authService.sendUnipileHtmlEmail(
+            dto.accountId,
+            dto.to,
+            dto.subject,
+            dto.html,
+            file.buffer,
+            file.originalname,
+        );
     }
 
     @Get('/unipile/send')
@@ -458,6 +492,196 @@ export class AuthController {
                             'Attachment download failed:',
                             error
                         );
+                    }
+                }
+            </script>
+
+        </body>
+        </html>
+    `);
+    }
+
+    @Get('/unipile/send-html')
+    getSendHtmlEmailPage(@Res() res: Response) {
+        res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Send HTML Email - Unipile</title>
+
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    max-width: 600px;
+                    margin: 50px auto;
+                    padding: 20px;
+                }
+
+                input,
+                textarea {
+                    width: 100%;
+                    padding: 10px;
+                    margin: 8px 0 15px;
+                    box-sizing: border-box;
+                }
+
+                textarea {
+                    height: 200px;
+                    font-family: monospace;
+                }
+
+                button {
+                    padding: 10px 20px;
+                    cursor: pointer;
+                }
+
+                #result {
+                    margin-top: 20px;
+                }
+            </style>
+        </head>
+
+        <body>
+
+            <h2>Send HTML Email</h2>
+
+            <label>Unipile Account ID</label>
+
+            <input
+                id="accountId"
+                type="text"
+                placeholder="Enter Unipile account ID"
+            />
+
+            <label>To</label>
+
+            <input
+                id="to"
+                type="email"
+                placeholder="recipient@example.com"
+            />
+
+            <label>Subject</label>
+
+            <input
+                id="subject"
+                type="text"
+                placeholder="Invoice #INV-2026-10398"
+            />
+
+            <label>HTML Message</label>
+
+            <textarea
+                id="html"
+                placeholder="<p>Hi Peter,</p><p>Please find attached your invoice.</p>"
+            ></textarea>
+
+            <label>Attachment</label>
+
+            <input
+                id="file"
+                type="file"
+            />
+
+            <button onclick="sendEmail()">
+                Send Email
+            </button>
+
+            <div id="result"></div>
+
+            <script>
+                async function sendEmail() {
+
+                    const accountId =
+                        document.getElementById('accountId').value;
+
+                    const to =
+                        document.getElementById('to').value;
+
+                    const subject =
+                        document.getElementById('subject').value;
+
+                    const html =
+                        document.getElementById('html').value;
+
+                    const file =
+                        document.getElementById('file').files[0];
+
+                    if (
+                        !accountId ||
+                        !to ||
+                        !subject ||
+                        !html ||
+                        !file
+                    ) {
+                        document.getElementById('result').innerText =
+                            'Please fill all fields and select a file.';
+
+                        return;
+                    }
+
+                    const formData = new FormData();
+
+                    formData.append(
+                        'accountId',
+                        accountId
+                    );
+
+                    formData.append(
+                        'to',
+                        to
+                    );
+
+                    formData.append(
+                        'subject',
+                        subject
+                    );
+
+                    formData.append(
+                        'html',
+                        html
+                    );
+
+                    formData.append(
+                        'file',
+                        file
+                    );
+
+                    try {
+
+                        document.getElementById('result').innerText =
+                            'Sending...';
+
+                        const response = await fetch(
+                            '/auth/unipile/send-html',
+                            {
+                                method: 'POST',
+                                body: formData
+                            }
+                        );
+
+                        const data =
+                            await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(
+                                data.message ||
+                                data.error ||
+                                'Failed to send email'
+                            );
+                        }
+
+                        document.getElementById('result').innerText =
+                            'Email sent successfully!';
+
+                        console.log(data);
+
+                    } catch (error) {
+
+                        document.getElementById('result').innerText =
+                            'Error: ' + error.message;
+
+                        console.error(error);
                     }
                 }
             </script>
