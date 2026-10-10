@@ -1304,4 +1304,686 @@ refreshButton.hidden = true;
   `);
     }
 
+    // for outbox messages
+    @Get('/unipile/mail-outbox')
+    showUnipileOutbox(@Res() res: Response) {
+        return res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mail Outbox</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f6fb;
+      color: #202938;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    button, input { font: inherit; }
+    .app {
+      max-width: 1500px;
+      min-height: 100vh;
+      margin: auto;
+      padding: 24px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .brand {
+      font-size: 25px;
+      font-weight: 750;
+      letter-spacing: -.7px;
+    }
+    .brand span { color: #3978f6; }
+    .account-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .account-input {
+      width: 280px;
+      max-width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #dce2ec;
+      border-radius: 10px;
+      outline: none;
+      background: #fff;
+    }
+    .account-input:focus {
+      border-color: #3978f6;
+      box-shadow: 0 0 0 3px #3978f61c;
+    }
+    .btn {
+      padding: 11px 16px;
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background .2s, transform .2s;
+    }
+    .btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      color: #fff;
+      background: #3978f6;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #245fda;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      color: #334155;
+      background: #e9eef6;
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: #dce5f2;
+    }
+    .status {
+      margin: 0 0 16px;
+      color: #64748b;
+      font-size: 13px;
+    }
+    .mail-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+      min-height: 650px;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid #e4e9f1;
+      border-radius: 16px;
+      box-shadow: 0 8px 35px #17255408;
+    }
+    .inbox-panel {
+      min-width: 0;
+      border-right: 1px solid #e8edf4;
+      background: #fff;
+    }
+    .panel-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      border-bottom: 1px solid #edf0f5;
+    }
+    .panel-heading h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+    .count {
+      padding: 5px 9px;
+      border-radius: 20px;
+      background: #edf4ff;
+      color: #3978f6;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .message-list {
+      max-height: 760px;
+      overflow-y: auto;
+    }
+    .message-item {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      text-align: left;
+      color: inherit;
+      background: #fff;
+      border: 0;
+      border-bottom: 1px solid #edf0f5;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      transition: background .18s, border-color .18s, box-shadow .18s;
+    }
+    .message-item:hover {
+      background: #f2f7ff;
+      border-left-color: #7aa7ff;
+      box-shadow: inset 0 0 0 1px #e1ecff;
+    }
+    .message-item.active {
+      background: #edf4ff;
+      border-left-color: #3978f6;
+    }
+    .message-sender {
+      display: block;
+      overflow: hidden;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .message-subject {
+      display: block;
+      overflow: hidden;
+      margin-bottom: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .message-preview {
+      display: block;
+      overflow: hidden;
+      color: #7b8798;
+      font-size: 12px;
+      line-height: 1.6;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .message-date {
+      display: block;
+      margin-top: 9px;
+      color: #94a0b1;
+      font-size: 11px;
+    }
+    .reader {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      background: #fff;
+    }
+    .reader-header {
+      padding: 26px;
+      border-bottom: 1px solid #edf0f5;
+    }
+    .reader-subject {
+      margin: 0 0 22px;
+      overflow-wrap: anywhere;
+      font-size: 23px;
+      line-height: 1.4;
+    }
+    .sender-row {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+    }
+    .avatar {
+      display: flex;
+      width: 43px;
+      height: 43px;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      color: #245fda;
+      background: #e5efff;
+      font-weight: 700;
+    }
+    .sender-info { min-width: 0; }
+    .sender-name {
+      margin-bottom: 5px;
+      overflow-wrap: anywhere;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .sender-email {
+      overflow-wrap: anywhere;
+      color: #7b8798;
+      font-size: 12px;
+    }
+    .reader-date {
+      margin-top: 15px;
+      color: #7b8798;
+      font-size: 12px;
+    }
+    .reader-body {
+      min-height: 420px;
+      flex: 1;
+      padding: 22px;
+      background: #fff;
+    }
+    .email-frame {
+      display: block;
+      width: 100%;
+      min-height: 480px;
+      border: 0;
+      background: #fff;
+    }
+    .empty-state {
+      display: flex;
+      min-height: 480px;
+      padding: 30px;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      color: #8793a5;
+    }
+    .empty-icon {
+      display: flex;
+      width: 64px;
+      height: 64px;
+      margin-bottom: 18px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 20px;
+      background: #edf4ff;
+      color: #3978f6;
+      font-size: 29px;
+    }
+    .empty-title {
+      margin-bottom: 9px;
+      color: #334155;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .empty-description {
+      max-width: 300px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .mobile-back { display: none; }
+    @media (max-width: 850px) {
+      .app { padding: 14px; }
+      .mail-layout {
+        display: block;
+        min-height: 75vh;
+      }
+      .inbox-panel { border-right: 0; }
+      .reader { display: none; }
+      .mail-layout.show-reader .inbox-panel { display: none; }
+      .mail-layout.show-reader .reader { display: flex; }
+      .mobile-back {
+        display: inline-block;
+        margin-bottom: 15px;
+      }
+      .reader-header { padding: 20px; }
+      .reader-subject { font-size: 20px; }
+      .reader-body { padding: 12px; }
+      .email-frame { min-height: 65vh; }
+      .account-form { width: 100%; }
+      .account-input {
+        flex: 1;
+        width: auto;
+        min-width: 0;
+      }
+    }
+    @media (max-width: 450px) {
+      .app { padding: 10px; }
+      .brand { font-size: 22px; }
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .account-input { width: 100%; }
+      .account-form > button { flex: 1; }
+      .reader-subject { font-size: 18px; }
+      .message-item { padding: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">Mail<span>Box</span></div>
+      <form id="accountForm" class="account-form">
+        <input
+          id="accountId"
+          class="account-input"
+          type="text"
+          placeholder="Enter your account ID"
+          autocomplete="off"
+          required
+        >
+        <button id="loadButton" class="btn btn-primary" type="submit">
+          Load Outbox
+        </button>
+        <button
+          id="refreshButton"
+          class="btn btn-secondary"
+          type="button"
+          hidden
+        >
+          ↻ Refresh
+        </button>
+      </form>
+    </header>
+    <div id="status" class="status" role="status" aria-live="polite">
+      Enter your account ID to load your sent messages.
+    </div>
+    <section id="mailLayout" class="mail-layout">
+      <aside class="inbox-panel">
+        <div class="panel-heading">
+          <h2>Outbox</h2>
+          <span id="messageCount" class="count">0 messages</span>
+        </div>
+        <div id="messageList" class="message-list">
+          <div class="empty-state">
+            <div class="empty-icon">✉</div>
+            <div class="empty-title">Your outbox</div>
+            <div class="empty-description">
+              Load your account to see your sent messages here.
+            </div>
+          </div>
+        </div>
+      </aside>
+      <section class="reader" id="messageDetail">
+        <div class="empty-state">
+          <div class="empty-icon">✉</div>
+          <div class="empty-title">Select a message</div>
+          <div class="empty-description">
+            Choose a sent email to read its full contents.
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script>
+    const form = document.getElementById('accountForm');
+    const accountInput = document.getElementById('accountId');
+    const loadButton = document.getElementById('loadButton');
+    const refreshButton = document.getElementById('refreshButton');
+    const status = document.getElementById('status');
+    const messageList = document.getElementById('messageList');
+    const messageDetail = document.getElementById('messageDetail');
+    const messageCount = document.getElementById('messageCount');
+    const mailLayout = document.getElementById('mailLayout');
+
+    let messages = [];
+    let activeIndex = -1;
+
+    function getMessageBody(message) {
+      return message.bodyHtml ||
+        message.body_html ||
+        message.message ||
+        message.body ||
+        message.body_plain ||
+        '';
+    }
+
+    function getPlainText(value) {
+      const element = document.createElement('div');
+      element.innerHTML = String(value || '');
+      return (element.textContent || element.innerText || '')
+        .replace(/\\s+/g, ' ')
+        .trim();
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime())
+        ? ''
+        : date.toLocaleString();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    async function loadInbox(event) {
+      if (event) event.preventDefault();
+
+      const accountId = accountInput.value.trim();
+
+      if (!accountId) {
+        status.textContent = 'Enter your account ID first.';
+        return;
+      }
+
+      localStorage.setItem('unipileOutboxAccountId', accountId);
+
+      loadButton.disabled = true;
+      refreshButton.disabled = true;
+      refreshButton.hidden = false;
+      status.textContent = 'Loading your sent messages...';
+
+      try {
+        const response = await fetch(
+          '/auth/unipile/sync/outbox/' + encodeURIComponent(accountId),
+          {
+            headers: { Accept: 'application/json' },
+            cache: 'no-store'
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Outbox request failed: ' + response.status);
+        }
+
+        const data = await response.json();
+
+        messages = Array.isArray(data)
+          ? data
+          : Array.isArray(data.messages)
+            ? data.messages
+            : [];
+
+        renderInbox();
+
+        status.textContent =
+          'Outbox updated successfully. ' +
+          messages.length + ' messages loaded.';
+      } catch (error) {
+        status.textContent =
+          error.message || 'Unable to load your outbox.';
+
+        if (!messages.length) {
+          showEmptyState(
+            'Unable to load messages',
+            'Check your account ID and try again.'
+          );
+        }
+      } finally {
+        loadButton.disabled = false;
+        refreshButton.disabled = false;
+      }
+    }
+
+    function showEmptyState(title, description) {
+      messageDetail.replaceChildren();
+
+      const state = document.createElement('div');
+      state.className = 'empty-state';
+
+      const icon = document.createElement('div');
+      icon.className = 'empty-icon';
+      icon.textContent = '✉';
+
+      const heading = document.createElement('div');
+      heading.className = 'empty-title';
+      heading.textContent = title;
+
+      const detail = document.createElement('div');
+      detail.className = 'empty-description';
+      detail.textContent = description;
+
+      state.append(icon, heading, detail);
+      messageDetail.appendChild(state);
+    }
+
+    function renderInbox() {
+      messageList.replaceChildren();
+      messageDetail.replaceChildren();
+      activeIndex = -1;
+
+      messageCount.textContent =
+        messages.length + (messages.length === 1 ? ' message' : ' messages');
+
+      if (!messages.length) {
+        const state = document.createElement('div');
+        state.className = 'empty-state';
+
+        const icon = document.createElement('div');
+        icon.className = 'empty-icon';
+        icon.textContent = '✉';
+
+        const heading = document.createElement('div');
+        heading.className = 'empty-title';
+        heading.textContent = 'No sent messages found';
+
+        const detail = document.createElement('div');
+        detail.className = 'empty-description';
+        detail.textContent =
+          'No sent messages were returned for this account.';
+
+        state.append(icon, heading, detail);
+        messageList.appendChild(state);
+
+        showEmptyState(
+          'Your outbox is empty',
+          'When sent messages are available, select one to read it here.'
+        );
+
+        mailLayout.classList.remove('show-reader');
+        return;
+      }
+
+      messages.forEach(function(message, index) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'message-item';
+
+        const sender = document.createElement('span');
+        sender.className = 'message-sender';
+        sender.textContent =
+          message.senderName ||
+          message.senderEmail ||
+          message.to ||
+          'Sent message';
+
+        const subject = document.createElement('span');
+        subject.className = 'message-subject';
+        subject.textContent = message.subject || '(No subject)';
+
+        const preview = document.createElement('span');
+        preview.className = 'message-preview';
+        preview.textContent = getPlainText(getMessageBody(message)) ||
+          'No message preview available';
+
+        const date = document.createElement('span');
+        date.className = 'message-date';
+        date.textContent = formatDate(
+          message.sentAt || message.receivedAt || message.date
+        );
+
+        item.append(sender, subject, preview, date);
+
+        item.addEventListener('click', function() {
+          showMessage(index);
+        });
+
+        messageList.appendChild(item);
+      });
+
+      showMessage(0);
+    }
+
+    function showMessage(index) {
+      const message = messages[index];
+      if (!message) return;
+
+      activeIndex = index;
+
+      Array.from(messageList.querySelectorAll('.message-item'))
+        .forEach(function(item, itemIndex) {
+          item.classList.toggle('active', itemIndex === index);
+        });
+
+      messageDetail.replaceChildren();
+
+      const header = document.createElement('div');
+      header.className = 'reader-header';
+
+      const backButton = document.createElement('button');
+      backButton.type = 'button';
+      backButton.className = 'btn btn-secondary mobile-back';
+      backButton.textContent = '← Back to outbox';
+
+      backButton.addEventListener('click', function() {
+        mailLayout.classList.remove('show-reader');
+      });
+
+      const subject = document.createElement('h1');
+      subject.className = 'reader-subject';
+      subject.textContent = message.subject || '(No subject)';
+
+      const senderRow = document.createElement('div');
+      senderRow.className = 'sender-row';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+
+      const senderName =
+        message.senderName || message.senderEmail || 'Sent message';
+
+      avatar.textContent = senderName.trim().charAt(0).toUpperCase() || '?';
+
+      const senderInfo = document.createElement('div');
+      senderInfo.className = 'sender-info';
+
+      const sender = document.createElement('div');
+      sender.className = 'sender-name';
+      sender.textContent = senderName;
+
+      const email = document.createElement('div');
+      email.className = 'sender-email';
+      email.textContent = message.senderEmail || '';
+
+      senderInfo.append(sender, email);
+      senderRow.append(avatar, senderInfo);
+
+      const date = document.createElement('div');
+      date.className = 'reader-date';
+      date.textContent = formatDate(
+        message.sentAt || message.receivedAt || message.date
+      );
+
+      header.append(backButton, subject, senderRow, date);
+
+      const bodyContainer = document.createElement('div');
+      bodyContainer.className = 'reader-body';
+
+      const frame = document.createElement('iframe');
+      frame.className = 'email-frame';
+      frame.title = 'Sent email content';
+      frame.setAttribute('sandbox', 'allow-popups');
+
+      const rawBody = getMessageBody(message);
+      const hasHtml = /<[a-z][\\s\\S]*>/i.test(String(rawBody));
+
+      const emailDocument = hasHtml
+        ? String(rawBody)
+        : '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+          '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+          '</head><body style="font-family:Arial,sans-serif;font-size:14px;' +
+          'line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;color:#202938;">' +
+          escapeHtml(rawBody) +
+          '</body></html>';
+
+      frame.srcdoc = emailDocument;
+
+      bodyContainer.appendChild(frame);
+      messageDetail.append(header, bodyContainer);
+
+      mailLayout.classList.add('show-reader');
+    }
+
+    form.addEventListener('submit', loadInbox);
+    refreshButton.addEventListener('click', loadInbox);
+
+    const savedAccountId = '';
+
+    accountInput.value = savedAccountId;
+    refreshButton.hidden = true;
+  </script>
+</body>
+</html>
+  `);
+    }
+
 }
